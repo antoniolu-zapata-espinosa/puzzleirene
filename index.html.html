@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>¡El Gran Rompecabezas de mi Hija!</title>
+    <style>
+        :root {
+            --primary: #ff7675;
+            --accent: #74b9ff;
+            --bg: #ffeaa7;
+        }
+        body {
+            font-family: 'Arial Rounded MT Bold', 'Helvetica', sans-serif;
+            background-color: var(--bg);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            user-select: none;
+        }
+        h1 {
+            color: #d63031;
+            margin: 0 0 15px 0;
+            text-shadow: 2px 2px 0px #fff;
+        }
+        .controls {
+            background: white;
+            padding: 12px 25px;
+            border-radius: 50px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+        select, button {
+            background: white;
+            border: 2px solid var(--primary);
+            padding: 10px 20px;
+            border-radius: 25px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.1s;
+        }
+        button {
+            background: var(--primary);
+            color: white;
+            border: none;
+            box-shadow: 0 4px 0px #ee5253;
+        }
+        button:active { transform: translateY(4px); box-shadow: none; }
+        
+        #board-container {
+            position: relative;
+            width: 500px;
+            height: 400px;
+            background: rgba(255, 255, 255, 0.6);
+            border: 4px dashed #b2bec3;
+            border-radius: 12px;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.05);
+        }
+        .grid-slot {
+            position: absolute;
+            border: 1px rgba(0,0,0,0.15) solid;
+            box-sizing: border-box;
+        }
+        #pieces-pool {
+            width: 500px;
+            min-height: 120px;
+            margin-top: 25px;
+            background: white;
+            border-radius: 15px;
+            padding: 15px;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+            align-items: center;
+        }
+        .piece {
+            position: absolute;
+            cursor: grab;
+            box-shadow: 2px 4px 8px rgba(0,0,0,0.3);
+            border-radius: 4px;
+            touch-action: none;
+            z-index: 10;
+        }
+        .piece:active { cursor: grabbing; z-index: 100; }
+        .piece.in-pool {
+            position: relative !important;
+            left: auto !important;
+            top: auto !important;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+        }
+        #win-message {
+            display: none;
+            color: #27ae60;
+            font-size: 28px;
+            margin-top: 20px;
+            font-weight: bold;
+            text-shadow: 1px 1px 0 #fff;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>🧩 ¡Mi Rompecabezas de 20 Piezas! 🧩</h1>
+
+    <div class="controls">
+        <label for="image-select" style="font-weight: bold;">Elige un dibujo: </label>
+        <select id="image-select" onchange="initPuzzle()"></select>
+        <button onclick="initPuzzle()">Reiniciar</button>
+    </div>
+
+    <div id="board-container"></div>
+    <div id="pieces-pool"></div>
+    <div id="win-message">🎉 ¡Felicidades! ¡Lo lograste! 🎉</div>
+
+    <script>
+        // ========================================================
+        // 📸 REPOSITORIO: Añade o cambia aquí los nombres de tus fotos
+        // Recuerda guardarlas dentro de la carpeta "imagenes/"
+        // ========================================================
+        const repository = [
+            { name: "Bluey con la familia", url: "imagenes/Bluey con la familia.jpg" },
+            { name: "Bluey en el columpio", url: "imagenes/Bluey en el columpio.jpg" },
+            { name: "Bluey en el parque", url: "imagenes/Bluey en el parque.jpg" },
+            { name: "Bluey volando", url: "imagenes/Bluey volando.jpg" },
+            { name: "Peppa pig con la familia", url: "imagenes/Peppa pig con la familia.jpg" },
+            { name: "Spidey con amigos", url: "imagenes/Spidey con amigos.jpg" }
+        ];
+
+        const COLS = 5;
+        const ROWS = 4;
+        const TOTAL_PIECES = COLS * ROWS;
+        const BOARD_WIDTH = 500;
+        const BOARD_HEIGHT = 400;
+        const PIECE_WIDTH = BOARD_WIDTH / COLS;
+        const PIECE_HEIGHT = BOARD_HEIGHT / ROWS;
+
+        const board = document.getElementById("board-container");
+        const pool = document.getElementById("pieces-pool");
+        const select = document.getElementById("image-select");
+        const winMessage = document.getElementById("win-message");
+
+        let piecesPlaced = 0;
+
+        // Rellenar el selector con el repositorio de fotos
+        repository.forEach(img => {
+            let option = document.createElement("option");
+            option.value = img.url;
+            option.textContent = img.name;
+            select.appendChild(option);
+        });
+
+        function initPuzzle() {
+            board.innerHTML = "";
+            pool.innerHTML = "";
+            winMessage.style.display = "none";
+            piecesPlaced = 0;
+
+            const currentImgUrl = select.value;
+            let piecesArray = [];
+
+            for (let r = 0; r < ROWS; r++) {
+                for (let c = 0; c < COLS; c++) {
+                    const index = r * COLS + c;
+                    const posX = c * PIECE_WIDTH;
+                    const posY = r * PIECE_HEIGHT;
+
+                    const slot = document.createElement("div");
+                    slot.classList.add("grid-slot");
+                    slot.style.width = `${PIECE_WIDTH}px`;
+                    slot.style.height = `${PIECE_HEIGHT}px`;
+                    slot.style.left = `${posX}px`;
+                    slot.style.top = `${posY}px`;
+                    board.appendChild(slot);
+
+                    const piece = document.createElement("div");
+                    piece.classList.add("piece", "in-pool");
+                    piece.style.width = `${PIECE_WIDTH}px`;
+                    piece.style.height = `${PIECE_HEIGHT}px`;
+                    piece.style.backgroundImage = `url('${currentImgUrl}')`;
+                    piece.style.backgroundSize = `${BOARD_WIDTH}px ${BOARD_HEIGHT}px`;
+                    piece.style.backgroundPosition = `-${posX}px -${posY}px`;
+                    
+                    piece.dataset.correctX = posX;
+                    piece.dataset.correctY = posY;
+
+                    makeDraggable(piece);
+                    piecesArray.push(piece);
+                }
+            }
+
+            piecesArray.sort(() => Math.random() - 0.5);
+            piecesArray.forEach(piece => pool.appendChild(piece));
+        }
+
+        function makeDraggable(el) {
+            let startX, startY, isDragging = false;
+
+            el.addEventListener('mousedown', dragStart);
+            el.addEventListener('touchstart', dragStart, { passive: false });
+
+            function dragStart(e) {
+                if (el.dataset.locked === "true") return;
+                isDragging = true;
+                
+                if (el.classList.contains('in-pool')) {
+                    el.classList.remove('in-pool');
+                    board.appendChild(el);
+                }
+
+                const clientX = e.touches ? e.touches.clientX : e.clientX;
+                const clientY = e.touches ? e.touches.clientY : e.clientY;
+
+                const rect = board.getBoundingClientRect();
+                el.style.left = `${clientX - rect.left - (PIECE_WIDTH / 2)}px`;
+                el.style.top = `${clientY - rect.top - (PIECE_HEIGHT / 2)}px`;
+
+                startX = clientX - el.offsetLeft;
+                startY = clientY - el.offsetTop;
+
+                document.addEventListener('mousemove', dragMove);
+                document.addEventListener('touchmove', dragMove, { passive: false });
+                document.addEventListener('mouseup', dragEnd);
+                document.addEventListener('touchend', dragEnd);
+            }
+
+            function dragMove(e) {
+                if (!isDragging) return;
+                if (e.cancelable) e.preventDefault();
+                const clientX = e.touches ? e.touches.clientX : e.clientX;
+                const clientY = e.touches ? e.touches.clientY : e.clientY;
+                el.style.left = `${clientX - startX}px`;
+                el.style.top = `${clientY - startY}px`;
+            }
+
+            function dragEnd() {
+                if (!isDragging) return;
+                isDragging = false;
+
+                document.removeEventListener('mousemove', dragMove);
+                document.removeEventListener('touchmove', dragMove);
+                document.removeEventListener('mouseup', dragEnd);
+                document.removeEventListener('touchend', dragEnd);
+
+                const currentX = parseFloat(el.style.left);
+                const currentY = parseFloat(el.style.top);
+                const targetX = parseFloat(el.dataset.correctX);
+                const targetY = parseFloat(el.dataset.correctY);
+
+                if (Math.abs(currentX - targetX) < 35 && Math.abs(currentY - targetY) < 35) {
+                    el.style.left = `${targetX}px`;
+                    el.style.top = `${targetY}px`;
+                    el.dataset.locked = "true";
+                    el.style.cursor = "default";
+                    el.style.boxShadow = "none";
+                    piecesPlaced++;
+                    if (piecesPlaced === TOTAL_PIECES) winMessage.style.display = "block";
+                } else {
+                    el.classList.add('in-pool');
+                    pool.appendChild(el);
+                }
+            }
+        }
+
+        window.onload = initPuzzle;
+    </script>
+</body>
+</html>
