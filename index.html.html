@@ -53,6 +53,52 @@
         }
         button:active { transform: translateY(4px); box-shadow: none; }
         
+        /* === NUEVO CONTENEDOR FLEX PARA APILAR LATERALMENTE === */
+        .game-layout {
+            display: flex;
+            flex-direction: row;
+            gap: 30px;
+            align-items: flex-start;
+            justify-content: center;
+            max-width: 900px;
+            width: 100%;
+        }
+
+        /* Columna del rompecabezas */
+        .puzzle-side {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        /* Columna de la vista previa */
+        .preview-side {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background: white;
+            padding: 15px;
+            border-radius: 15px;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+        }
+
+        .preview-title {
+            font-size: 14px;
+            color: #2d3436;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+
+        #preview-image {
+            width: 250px; /* Tamaño ideal para que sirva de guía lateral */
+            height: 200px;
+            object-fit: cover;
+            border-radius: 8px;
+            border: 3px solid var(--primary);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        /* ==================================================== */
+
         #board-container {
             position: relative;
             width: 500px;
@@ -104,6 +150,14 @@
             font-weight: bold;
             text-shadow: 1px 1px 0 #fff;
         }
+
+        /* Adaptación para pantallas más pequeñas */
+        @media (max-width: 850px) {
+            .game-layout {
+                flex-direction: column;
+                align-items: center;
+            }
+        }
     </style>
 </head>
 <body>
@@ -116,15 +170,26 @@
         <button onclick="initPuzzle()">Reiniciar</button>
     </div>
 
-    <div id="board-container"></div>
-    <div id="pieces-pool"></div>
+    <!-- Contenedor general flexible -->
+    <div class="game-layout">
+        
+        <!-- Lado izquierdo: El juego completo -->
+        <div class="puzzle-side">
+            <div id="board-container"></div>
+            <div id="pieces-pool"></div>
+        </div>
+
+        <!-- Lado derecho: Imagen modelo (Guía) -->
+        <div class="preview-side">
+            <div class="preview-title">Mira el modelo aquí:</div>
+            <img id="preview-image" src="" alt="Modelo a seguir">
+        </div>
+
+    </div>
+
     <div id="win-message">🎉 ¡Felicidades! ¡Lo lograste! 🎉</div>
 
     <script>
-        // ========================================================
-        // 📸 REPOSITORIO: Añade o cambia aquí los nombres de tus fotos
-        // Recuerda guardarlas dentro de la carpeta "imagenes/"
-        // ========================================================
         const repository = [
             { name: "Bluey con la familia", url: "imagenes/Bluey con la familia.jpg" },
             { name: "Bluey en el columpio", url: "imagenes/Bluey en el columpio.jpg" },
@@ -146,6 +211,7 @@
         const pool = document.getElementById("pieces-pool");
         const select = document.getElementById("image-select");
         const winMessage = document.getElementById("win-message");
+        const previewImage = document.getElementById("preview-image"); // Nueva referencia
 
         let piecesPlaced = 0;
 
@@ -164,6 +230,10 @@
             piecesPlaced = 0;
 
             const currentImgUrl = select.value;
+            
+            // Actualiza dinámicamente la imagen lateral derecha
+            previewImage.src = currentImgUrl; 
+
             let piecesArray = [];
 
             for (let r = 0; r < ROWS; r++) {
@@ -215,61 +285,10 @@
                     board.appendChild(el);
                 }
 
-                const clientX = e.touches ? e.touches.clientX : e.clientX;
-                const clientY = e.touches ? e.touches.clientY : e.clientY;
+                const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                const clientY = e.touches ? e.touches[0].clientY : e.clientY;
 
                 const rect = board.getBoundingClientRect();
                 el.style.left = `${clientX - rect.left - (PIECE_WIDTH / 2)}px`;
                 el.style.top = `${clientY - rect.top - (PIECE_HEIGHT / 2)}px`;
 
-                startX = clientX - el.offsetLeft;
-                startY = clientY - el.offsetTop;
-
-                document.addEventListener('mousemove', dragMove);
-                document.addEventListener('touchmove', dragMove, { passive: false });
-                document.addEventListener('mouseup', dragEnd);
-                document.addEventListener('touchend', dragEnd);
-            }
-
-            function dragMove(e) {
-                if (!isDragging) return;
-                if (e.cancelable) e.preventDefault();
-                const clientX = e.touches ? e.touches.clientX : e.clientX;
-                const clientY = e.touches ? e.touches.clientY : e.clientY;
-                el.style.left = `${clientX - startX}px`;
-                el.style.top = `${clientY - startY}px`;
-            }
-
-            function dragEnd() {
-                if (!isDragging) return;
-                isDragging = false;
-
-                document.removeEventListener('mousemove', dragMove);
-                document.removeEventListener('touchmove', dragMove);
-                document.removeEventListener('mouseup', dragEnd);
-                document.removeEventListener('touchend', dragEnd);
-
-                const currentX = parseFloat(el.style.left);
-                const currentY = parseFloat(el.style.top);
-                const targetX = parseFloat(el.dataset.correctX);
-                const targetY = parseFloat(el.dataset.correctY);
-
-                if (Math.abs(currentX - targetX) < 35 && Math.abs(currentY - targetY) < 35) {
-                    el.style.left = `${targetX}px`;
-                    el.style.top = `${targetY}px`;
-                    el.dataset.locked = "true";
-                    el.style.cursor = "default";
-                    el.style.boxShadow = "none";
-                    piecesPlaced++;
-                    if (piecesPlaced === TOTAL_PIECES) winMessage.style.display = "block";
-                } else {
-                    el.classList.add('in-pool');
-                    pool.appendChild(el);
-                }
-            }
-        }
-
-        window.onload = initPuzzle;
-    </script>
-</body>
-</html>
